@@ -3,161 +3,98 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-<title>gsi-river</title>
-<link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-1.0.0-b1/leaflet.css" />
-<script src="//cdn.leafletjs.com/leaflet-1.0.0-b1/leaflet.js"></script>
+<title>GSI Maps + OSM POIs</title>
+<link rel="stylesheet" href="//cdn.leafletjs.com/leaflet/v1.0.0-beta.2/leaflet.css" />
+<script src="//cdn.leafletjs.com/leaflet/v1.0.0-beta.2/leaflet.js"></script>
 <script src="//cdn.rawgit.com/mlevans/leaflet-hash/master/leaflet-hash.js"></script>
 <style>
-body {
-	width: 100%;
-	height: 100%;
-	overflow: hidden;
-}
-
-#map {
-	width: 100%;
-	height: 100%;
-	position: absolute;
-	top: 0;
-	left: 0;
-	margin: 0;
-	padding: 0;
-}
-
-.river {
-	fill: none;
-	stroke-dasharray: 0.1, 9.9;
-	stroke-linejoin: round;
-	stroke-linecap: round;
-	animation: anime1 3s linear 0s infinite normal;
-}
+body {width: 100%; height: 100%; overflow: hidden;}
+#map {width: 100%; height: 100%; position: absolute;
+  top: 0; left: 0; margin: 0; padding: 0;}
+.leaflet-div-icon {background: rgba(0, 0, 0, 0); border: 0px;};
 </style>
 </head>
 <body>
-	<div id="map"></div>
-	<script>
-		var styles = {
-			'細河川（通常部）' : {
-				color : "#fff",
-				weight : 3
-			},
-			'細河川（枯れ川部）' : {
-				color : "#777",
-				weight : 3
-			},
-			'河川中心線（通常部）' : {
-				color : "#fff",
-				weight : 6
-			},
-			'河川中心線（枯れ川部）' : {
-				color : "#777",
-				weight : 6
-			},
-			'人工水路（空間）' : {
-				color : "#ccf",
-				weight : 6
-			},
-			'人工水路（地下）' : {
-				color : "#000",
-				weight : 4
-			},
-			'用水路' : {
-				color : "#0f0",
-				weight : 6
-			},
-			'その他' : {
-				color : "#f00",
-				weight : 6
-			},
-			'不明' : {
-				color : "#f00",
-				weight : 6
-			}
-		};
-		var loader = {
-			tmpl : "http://cyberjapandata.gsi.go.jp/xyz/experimental_rvrcl/{z}/{x}/{y}.geojson",
-			done : [],
-			load : function(coords) {
-				if (coords.z < 14) {
-					return;
-				} else if (coords.z < 16) {
-					this.load({
-						x : coords.x * 2,
-						y : coords.y * 2,
-						z : coords.z + 1
-					});
-					this.load({
-						x : coords.x * 2 + 1,
-						y : coords.y * 2,
-						z : coords.z + 1
-					});
-					this.load({
-						x : coords.x * 2,
-						y : coords.y * 2 + 1,
-						z : coords.z + 1
-					});
-					this.load({
-						x : coords.x * 2 + 1,
-						y : coords.y * 2 + 1,
-						z : coords.z + 1
-					});
-					return;
-				} else if (coords.z > 16) {
-					this.load({
-						x : Math.floor(coords.x / 2),
-						y : Math.floor(coords.y / 2),
-						z : coords.z - 1
-					});
-					return;
-				}
+<div id="map"></div>
+<script>
+var L_PREFER_CANVAS = true;
+/*
+var styles = {Cntr: {color: '#ca5'}};
+*/
+var icons = {
+	restaurant: '🍴', parking: '🅿️', traffic_signals: '🚥',
+	bus_stop: '🚏', post_office: '🏣', convenience: '🏪',
+	fuel: '⛽️', tree: '🌲', toilets: '🚻', company: '🏢',
+	bench: '💺', information: '💁', drinking_water: '水',
+	museum: '🎨', cafe: '☕️', police: '👮', memorial: '🌟',
+	playground: '📛', supermarket: '🏢', pharmacy: '💊',
+	telephone: '☎︎', post_box: '📮', pub: '🍻', bar: '🍻',
+	bicycle_parking: '🅿️', hairdresser: '✂️', fast_food: '🍔',
+	bicycle: '🚲', hotel: '🏨'
+};
+var loader = {
+  done : [],
+  load : function(coords, template) {
+    var url = L.Util.template(template, coords);
+    if (this.done.indexOf(url) > 0) return;
+    this.done.push(url);
+    var x = new XMLHttpRequest();
+    x.open("GET", url, true);
+    x.onreadystatechange = function() {
+      if (x.readyState != 4 || x.status != 200) return;
+      var gc = JSON.parse(x.responseText);
+      group.addLayer(L.geoJson(gc, {
+/*
+        style: function(feat) {
+          var s = {color: '#ccc'};
+          console.log(s);
+          return s;
+        },
+*/
+        pointToLayer: function(feat, latlng) {
+          var html = icons[feat.properties.kind];
+          if(feat.properties.sbaNo != undefined) html = feat.properties.sbaNo;
+          if(feat.properties.alti != undefined) html = feat.properties.alti;
+          if(feat.properties.class == 'CommPt') html = feat.properties.name;
+          if(html == undefined) html = '・';
+          var divi = L.divIcon({html: html});
+          var marker = L.marker(latlng, {icon: divi});
+          marker.bindPopup(JSON.stringify(feat.properties));
+          return marker;
+        },
+        style : function(feat) {return {weight: 1};}
+      }));
+    };
+    x.send();
+  }
+};
 
-				var url = L.Util.template(this.tmpl, coords);
-				if (this.done.indexOf(url) > 0)
-					return;
-				this.done.push(url);
-				var x = new XMLHttpRequest();
-				x.open("GET", url, true);
-				x.onreadystatechange = function() {
-					if (x.readyState != 4 || x.status != 200)
-						return;
-					group.addLayer(L.geoJson(JSON.parse(x.responseText), {
-						className : "river",
-						style : function(a) {
-							return styles[a.properties.type];
-						}
-					}));
-				};
-				x.send();
-			}
-		};
+var group = L.layerGroup();
+var map = L.map("map", {
+  zoom : 18, center : [ 35.569639139, 139.674843917 ]
+}).on("zoomstart zoomlevelschange zoomend", function() {
+  if (map.getZoom() < 16 && map.hasLayer(group)) {
+    map.removeLayer(group);
+  } else if (map.getZoom() > 15 && !map.hasLayer(group)) {
+    map.addLayer(group);
+  }
+});
 
-		var group = L.layerGroup();
+L.tileLayer("http://sandmaps.github.io/image/map/none.png", {
+  minZoom : 18, maxZoom : 18,
+  attribution: '国土地理院, OpenStreetMap contributors'}
+).on("tileload", function(event) {
+  loader.load(event.coords,
+    "http://cyberjapandata.gsi.go.jp/xyz/experimental_fgd/{z}/{x}/{y}.geojson");
+  loader.load(event.coords,
+    "http://vector.mapzen.com/osm/pois/{z}/{x}/{y}.json?api_key=vector-tiles-EAtlid0");
+}, this).addTo(map);
 
-		var map = L.map("map", {
-			zoom : 16,
-			center : [ 35.569639139, 139.674843917 ]
-		}).on("zoomstart zoomlevelschange zoomend", function() {
-			if (map.getZoom() < 14 && map.hasLayer(group)) {
-				map.removeLayer(group);
-			} else if (map.getZoom() > 13 && !map.hasLayer(group)) {
-				map.addLayer(group);
-			}
-		});
+L.tileLayer("http://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
+  minZoom: 2, maxZoom: 17, attribution: '国土地理院'
+}).addTo(map);
 
-		map.attributionControl.addAttribution("<a href='https://github.com/gsi-cyberjapan/vector-tile-experiment'>"
-				+ "ベクトルタイル提供実験・河川中心線(国土地理院)</a>");
-
-		L.tileLayer("http://cyberjapandata.gsi.go.jp/xyz/ort/{z}/{x}/{y}.jpg", {
-			attribution : "<a href='http://maps.gsi.go.jp/development/'>地理院タイル・オルソ(国土地理院)</a>",
-			minZoom : 8,
-			maxZoom : 18
-		}).on("tileload", function(event) {
-			loader.load(event.coords);
-		}, this).addTo(map);
-
-		new L.Hash(map);
-
-		document.write("<style>@keyframes anime1{0%{stroke-dashoffset:20;}100%{stroke-dashoffset:0;}}</style>");
-	</script>
+new L.Hash(map);
+</script>
 </body>
 </html>
