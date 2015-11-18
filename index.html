@@ -71,7 +71,7 @@ var loader = {
 
 var group = L.layerGroup();
 var map = L.map("map", {
-  zoom : 18, center : [ 35.569639139, 139.674843917 ]
+  zoom : 18, center : [ 37.49464, 139.93007 ]
 }).on("zoomstart zoomlevelschange zoomend", function() {
   if (map.getZoom() < 16 && map.hasLayer(group)) {
     map.removeLayer(group);
